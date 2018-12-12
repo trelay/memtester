@@ -73,8 +73,8 @@ void check_posix_system(void) {
 #define check_posix_system()
 #endif
 
-int memtester_pagesize(void) {
-    int pagesize = sysconf(_SC_PAGE_SIZE);
+size_t memtester_pagesize(void) {
+    size_t pagesize = sysconf(_SC_PAGE_SIZE);
     if (pagesize == -1) {
         perror("get page size failed");
         exit(EXIT_FAIL_NONSTARTER);
@@ -101,12 +101,13 @@ void usage(char *me) {
 
 
 int t_thread;
+int remaining_cores;
 pthread_mutex_t lock;
 
 
 //struct for the parameter to memtest thread.
 typedef struct _thread_data_t {
-    signed long long  pagespercore;
+    size_t pagesize;
     int core;
     ul loops;
     } thread_data_t;
@@ -133,7 +134,7 @@ void * showprogress(void * arg)
             fflush(stdout);
         }
         i++;
-        sleep(0.01);
+        sleep(0.5);
         if (t_thread<1) break;
     }
 }
@@ -141,7 +142,6 @@ void * showprogress(void * arg)
 void * submemtest(void *arg_pages)
 {
     int do_mlock = 1, done_mem = 0;
-    pthread_mutex_t core_count;
     int exit_code = 0;
     ul loops, loop,i;
     void volatile *buf, *aligned;
@@ -161,16 +161,18 @@ void * submemtest(void *arg_pages)
     ul testmask = 0;
     buf = NULL;
 
-    pagesize=memtester_pagesize();
-    fprintf(f,"pagesize is %ld\n", (long) pagesize);
-
+    //lock the process of allocating memory and lock it allocated.
     pthread_mutex_lock(&lock);
-    t_thread += 1;
-    pthread_mutex_unlock(&lock);
 
-    wantbytes = (testprmt->pagespercore)*pagesize;
+    signed long long avpages = sysconf(_SC_AVPHYS_PAGES);
+    signed long long pagesforcore = avpages/remaining_cores;
+
+    pagesize = testprmt->pagesize;
+    fprintf(f,"pagesize is %ld\n", (size_t) pagesize);
+
+    wantbytes = pagesforcore*pagesize;
     pagesizemask = (ptrdiff_t) ~(pagesize - 1);
-    fprintf(f,"Start test with cpu-%d, got memory:%ul MB.\n", testprmt->core, wantbytes);
+    fprintf(f,"Start test with cpu-%d, got memory:%uMB.\n", testprmt->core, (ull) wantbytes >> 20);
     fprintf(f,"pagesizemask is 0x%tx\n", pagesizemask);
     fflush(f);
 
@@ -226,6 +228,11 @@ void * submemtest(void *arg_pages)
                 }
             } else {
                 fprintf(f,"locked.\n");
+                fflush(f);
+                printf("Memory:%uMB was locked by cpu-%d.\n", (ull) wantbytes >> 20, testprmt->core);
+                fflush(stdout);
+                t_thread += 1;
+                remaining_cores = remaining_cores-1;
                 done_mem = 1;
             }
         } else {
@@ -234,6 +241,9 @@ void * submemtest(void *arg_pages)
         }
 
     }
+
+    //lock the process of allocating memory and lock it allocated.
+    pthread_mutex_unlock(&lock);
 
     if (!do_mlock) fprintf(f, "Continuing with unlocked memory; testing "
                            "will be slower and less reliable.\n");
@@ -287,7 +297,7 @@ void * submemtest(void *arg_pages)
 
 int main(int argc, char **argv) {
     ul loops, loop;
-    size_t pagesize;
+    size_t pagesize = memtester_pagesize();
     char *memsuffix, *addrsuffix, *loopsuffix;
     ptrdiff_t pagesizemask;
 
@@ -299,6 +309,8 @@ int main(int argc, char **argv) {
     char *device_name = "/dev/mem";
     struct stat statbuf;
     char *env_testmask = 0;
+
+
     ul testmask = 0;
 
     if (pthread_mutex_init(&lock, NULL) != 0)
@@ -355,6 +367,7 @@ int main(int argc, char **argv) {
 
     //TODO: Trelay add this for maxing memtest
     int avcores = get_nprocs();
+    remaining_cores = avcores;
     
     // Create array of pthread_t
     // create a thread_data_t argument array
@@ -362,15 +375,13 @@ int main(int argc, char **argv) {
     thread_data_t thr_data[avcores];
  
 
-    signed long long avpages = sysconf(_SC_AVPHYS_PAGES);
-    signed long long pagespercore = avpages/avcores;
+
     pthread_t progress;
 
     int i, rc;
     /* create threads */
     for (i = 0; i < avcores; ++i) {
-        thr_data[i].pagespercore = pagespercore;
-        //thr_data[i].pagespercore =2000;
+        thr_data[i].pagesize =pagesize;
         thr_data[i].loops = loops;
         thr_data[i].core = i;
 
@@ -395,5 +406,6 @@ int main(int argc, char **argv) {
 
     //TODO: Trelay add this for maxing memtest
     pthread_mutex_destroy(&lock);
+    printf("Complete.");
     exit(0);
 }

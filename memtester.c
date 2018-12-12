@@ -166,7 +166,7 @@ void * submemtest(void *arg_pages)
 
     signed long long avpages = sysconf(_SC_AVPHYS_PAGES);
     signed long long pagesforcore = avpages/remaining_cores;
-
+    pagesforcore = pagesforcore*0.001;
     pagesize = testprmt->pagesize;
     fprintf(f,"pagesize is %ld\n", (size_t) pagesize);
 
@@ -291,8 +291,10 @@ void * submemtest(void *arg_pages)
     t_thread = t_thread-1;
     pthread_mutex_unlock(&lock);
 
-    printf("Done.\n");
+    fprintf(f,"Done.\n");
     fflush(f);
+    printf("Memory:%uMB was completed test by cpu-%d.\n", (ull) wantbytes >> 20, testprmt->core);
+    fflush(stdout);
 }
 
 int main(int argc, char **argv) {
@@ -406,6 +408,6 @@ int main(int argc, char **argv) {
 
     //TODO: Trelay add this for maxing memtest
     pthread_mutex_destroy(&lock);
-    printf("Complete.");
+    printf("Memtester Complete.\n");
     exit(0);
 }

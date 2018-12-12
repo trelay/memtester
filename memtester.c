@@ -166,7 +166,7 @@ void * submemtest(void *arg_pages)
 
     signed long long avpages = sysconf(_SC_AVPHYS_PAGES);
     signed long long pagesforcore = avpages/remaining_cores;
-    pagesforcore = pagesforcore*0.001;
+    //pagesforcore = pagesforcore*0.001; //for test purpose, shorten the test time.
     pagesize = testprmt->pagesize;
     fprintf(f,"pagesize is %ld\n", (size_t) pagesize);
 

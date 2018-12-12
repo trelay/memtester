@@ -166,14 +166,15 @@ void * submemtest(void *arg_pages)
 
     signed long long avpages = sysconf(_SC_AVPHYS_PAGES);
     signed long long pagesforcore = avpages/remaining_cores;
-    //pagesforcore = pagesforcore*0.001; //for test purpose, shorten the test time.
+    pagesforcore = pagesforcore*0.001; //for test purpose, shorten the test time.
     pagesize = testprmt->pagesize;
     fprintf(f,"pagesize is %ld\n", (size_t) pagesize);
 
     wantbytes = pagesforcore*pagesize;
     pagesizemask = (ptrdiff_t) ~(pagesize - 1);
-    fprintf(f,"Start test with cpu-%d, got memory:%uMB.\n", testprmt->core, (ull) wantbytes >> 20);
     fprintf(f,"pagesizemask is 0x%tx\n", pagesizemask);
+    fprintf(f,"Cpu-%d reporting: trying to allocate memory(%uMB)...", testprmt->core, (ull) wantbytes >> 20);
+
     fflush(f);
 
     while (!done_mem) {
@@ -182,11 +183,8 @@ void * submemtest(void *arg_pages)
             if (!buf) wantbytes -= pagesize;
         }
         bufsize = wantbytes;
-        fprintf(f,"got  %lluMB (%llu bytes)", (ull) wantbytes >> 20,
-            (ull) wantbytes);
-        fflush(f);
         if (do_mlock) {
-            fprintf(f,", trying mlock ...");
+            fprintf(f,"mlocking ...");
             fflush(f);
             if ((size_t) buf % pagesize) {
                 /* printf("aligning to page -- was 0x%tx\n", buf); */
@@ -229,7 +227,7 @@ void * submemtest(void *arg_pages)
             } else {
                 fprintf(f,"locked.\n");
                 fflush(f);
-                printf("Memory:%uMB was locked by cpu-%d.\n", (ull) wantbytes >> 20, testprmt->core);
+                printf("Cpu-%d reporting: memory %uMB was locked.\n", testprmt->core, (ull) wantbytes >> 20);
                 fflush(stdout);
                 t_thread += 1;
                 remaining_cores = remaining_cores-1;
@@ -293,7 +291,7 @@ void * submemtest(void *arg_pages)
 
     fprintf(f,"Done.\n");
     fflush(f);
-    printf("Memory:%uMB was completed test by cpu-%d.\n", (ull) wantbytes >> 20, testprmt->core);
+    printf("Cpu-%d reporting: completed test with %uMB.\n", testprmt->core, (ull) wantbytes >> 20);
     fflush(stdout);
 }
 
@@ -325,7 +323,7 @@ int main(int argc, char **argv) {
     printf("memtester version " __version__ " (%d-bit)\n", UL_LEN);
     printf("Copyright (C) 2001-2012 Charles Cazabon.\n");
     printf("Midfied by Trelay for Whitebox product.\n");
-    printf("%20s\n", "2018.12.8 21:28");
+    printf("%20s\n", "2018.12.12 22:15");
     printf("Licensed under the GNU General Public License version 2 (only).\n");
     
     printf("\n");

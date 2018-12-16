@@ -230,7 +230,7 @@ void * submemtest(void *arg_pages)
                 printf("Cpu-%d reporting: memory %uMB was locked.\n", testprmt->core, (ull) wantbytes >> 20);
                 fflush(stdout);
                 t_thread += 1;
-                remaining_cores = remaining_cores-1;
+                remaining_cores--;
                 done_mem = 1;
             }
         } else {
@@ -284,6 +284,7 @@ void * submemtest(void *arg_pages)
         fflush(f);
     }
     if (do_mlock) munlock((void *) aligned, bufsize);
+    if (done_mem) free((void *) buf);
 
     pthread_mutex_lock(&lock);
     t_thread = t_thread-1;

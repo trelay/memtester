@@ -53,12 +53,13 @@ struct test tests[] = {
     { "Bit Flip", test_bitflip_comparison },
     { "Walking Ones", test_walkbits1_comparison },
     { "Walking Zeroes", test_walkbits0_comparison },
-#ifdef TEST_NARROW_WRITES    
+#ifdef TEST_NARROW_WRITES
     { "8-bit Writes", test_8bit_wide_random },
     { "16-bit Writes", test_16bit_wide_random },
 #endif
     { NULL, NULL }
 };
+
 
 /* Sanity checks and portability helper macros. */
 #ifdef _SC_VERSION
@@ -95,7 +96,7 @@ void usage(char *me);
 /* Function definitions */
 void usage(char *me) {
     fprintf(stderr, "\n"
-            "Usage: %s [loops]\n",me);
+            "Usage: %s [-t cpu-cores] [loops]\n", me);
     exit(EXIT_FAIL_NONSTARTER);
 }
 
@@ -303,6 +304,7 @@ int main(int argc, char **argv) {
     ptrdiff_t pagesizemask;
 
     int exit_code = 0;
+    int avcores;
     int memfd, opt, memshift;
     size_t maxbytes = -1; /* addressable memory, in bytes */
     size_t maxmb = (maxbytes >> 20) + 1; /* addressable memory, in MB */
@@ -343,7 +345,23 @@ int main(int argc, char **argv) {
             usage(argv[0]); /* doesn't return */
         }
         printf("using testmask 0x%lx\n", testmask);
-    }    
+    }
+
+
+    avcores = get_nprocs();
+    while ((opt = getopt(argc, argv, "t:")) != -1) {
+        switch (opt) {
+            case 't':
+                if ((0 < atoi(optarg)) && atoi(optarg) <= avcores)
+                    avcores=atoi(optarg);
+                break;
+            default: /* '?' */
+                fprintf(stderr, "failed to parse Cores(CPU, int) want to run.\n");
+                usage(argv[0]); /* doesn't return */
+        }
+    }
+
+
     if (optind >= argc) {
         fprintf(stderr, "need cycles you want to test, int\n");
         usage(argv[0]); /* doesn't return */
@@ -365,9 +383,7 @@ int main(int argc, char **argv) {
             usage(argv[0]); /* doesn't return */
         }
     }
-
-    //TODO: Trelay add this for maxing memtest
-    int avcores = get_nprocs();
+    
     remaining_cores = avcores;
     
     // Create array of pthread_t

@@ -58,7 +58,7 @@ make-load.sh auto-ccld.sh
 	chmod 755 make-load
 
 systype: \
-find-systype trycpp.c
+find-systype
 	./find-systype > systype
 
 extra-libs: \
